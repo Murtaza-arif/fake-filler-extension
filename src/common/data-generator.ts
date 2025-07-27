@@ -1,7 +1,35 @@
 import * as data from "src/common/dummy-data";
 import { DEFAULT_TELEPHONE_TEMPLATE } from "src/common/helpers";
+import { Mistral } from "@mistralai/mistralai";
 
 class DataGenerator {
+  private mistral: Mistral;
+
+  constructor() {
+    this.mistral = new Mistral({
+      apiKey: process.env["MISTRAL_API_KEY"] ?? "",
+    });
+  }
+
+  public async generateAIValue(fieldType: string, label: string, context?: string): Promise<string> {
+    try {
+      const result = await this.mistral.chat.complete({
+        model: "mistral-small-latest",
+        messages: [
+          {
+            content: `Generate a relevant value for a field with type \"${fieldType}\" and label \"${label}\". Context: ${context || "none"}`,
+            role: "user",
+          },
+        ],
+      });
+
+      return result?.choices?.[0]?.message?.content || "";
+    } catch (error) {
+      console.error("Mistral API error:", error);
+      return ""; // Fallback to empty string on error
+    }
+  }
+
   public randomNumber(start: number, end: number, decimalPlaces = 0): number {
     const min = Math.ceil(start);
     const max = Math.floor(end);

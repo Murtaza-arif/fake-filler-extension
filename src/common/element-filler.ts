@@ -21,6 +21,8 @@ class ElementFiller {
   private previousFirstName: string;
   private previousLastName: string;
 
+  private useAI: boolean = true; // Enable AI by default
+
   constructor(options: IFakeFillerOptions, profileIndex = -1) {
     this.options = options;
     this.profileIndex = profileIndex;
@@ -206,199 +208,31 @@ class ElementFiller {
     return this.options.defaultMaxLength;
   }
 
-  private generateDummyDataForCustomField(
+  private async generateDummyDataForCustomField(
     customField: ICustomField | undefined,
     element: HTMLInputElement | HTMLTextAreaElement | undefined = undefined
-  ): string {
-    if (!customField) {
-      return this.generator.phrase(this.getElementMaxLength(element));
+  ): Promise<string> {
+    if (this.useAI && customField) {
+      try {
+        const fieldType = customField.type || element?.type || "text";
+        const label = element?.getAttribute("aria-label") || element?.name || "unknown";
+        const context = customField.template || "";
+
+        // Use Mistral AI for value generation
+        const aiValue = await this.generator.generateAIValue(fieldType, label, context);
+        if (aiValue) {
+          return aiValue;
+        }
+      } catch (error) {
+        console.error("AI generation failed:", error);
+      }
     }
 
-    switch (customField.type) {
-      case "username": {
-        this.previousUsername = this.generator.scrambledWord(5, 10).toLowerCase();
-        return this.previousUsername;
-      }
-
-      case "first-name": {
-        this.previousFirstName = this.generator.firstName();
-        return this.previousFirstName;
-      }
-
-      case "last-name": {
-        this.previousLastName = this.generator.lastName();
-        return this.previousLastName;
-      }
-
-      case "full-name": {
-        this.previousFirstName = this.generator.firstName();
-        this.previousLastName = this.generator.lastName();
-        return `${this.previousFirstName} ${this.previousLastName}`;
-      }
-
-      case "email": {
-        let username = "";
-
-        switch (customField.emailUsername) {
-          case "list": {
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            const usernames = customField.emailUsernameList || DEFAULT_EMAIL_CUSTOM_FIELD.emailUsernameList!;
-            username = usernames[Math.floor(Math.random() * usernames.length)];
-            break;
-          }
-
-          case "username": {
-            if (this.previousUsername.length > 0) {
-              username = SanitizeText(this.previousUsername);
-            }
-            break;
-          }
-
-          case "name": {
-            if (this.previousFirstName.length > 0) {
-              username = SanitizeText(this.previousFirstName);
-            }
-            if (this.previousLastName.length > 0) {
-              if (username.length > 0) {
-                username += `.${SanitizeText(this.previousLastName)}`;
-              } else {
-                username = SanitizeText(this.previousLastName);
-              }
-            }
-            break;
-          }
-
-          case "regex": {
-            try {
-              if (customField.emailUsernameRegEx) {
-                const regExGenerator = new RandExp(customField.emailUsernameRegEx);
-                regExGenerator.defaultRange.add(0, 65535);
-                username = regExGenerator.gen();
-              }
-            } catch (ex) {
-              // Do nothing.
-            }
-            break;
-          }
-
-          default:
-            break;
-        }
-
-        if (!username || username.length === 0) {
-          username = this.generator.scrambledWord(4, 10).toLowerCase();
-        }
-
-        let domain = "";
-
-        if (customField.emailHostname === "list") {
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          const hostnames = customField.emailHostnameList || DEFAULT_EMAIL_CUSTOM_FIELD.emailHostnameList!;
-          const randomNumber = Math.floor(Math.random() * hostnames.length);
-          domain = hostnames[randomNumber];
-        }
-
-        if (!domain || domain.length === 0) {
-          domain = `${this.generator.scrambledWord().toLowerCase()}.com`;
-        }
-
-        if (domain.indexOf("@") === -1) {
-          domain = `@${domain}`;
-        }
-
-        let prefix = "";
-
-        if (customField.emailPrefix) {
-          prefix = customField.emailPrefix;
-        }
-
-        return prefix + username + domain;
-      }
-
-      case "organization": {
-        return this.generator.organizationName();
-      }
-      case "telephone": {
-        return this.generator.phoneNumber(customField.template);
-      }
-      case "number": {
-        const minValue = customField.min === 0 ? 0 : customField.min || 1;
-        const maxValue = customField.max || 100;
-        const decimalValue = customField.decimalPlaces || 0;
-        return String(this.generator.randomNumber(minValue, maxValue, decimalValue));
-      }
-
-      case "date": {
-        let minDate: Date | undefined;
-        let maxDate: Date | undefined;
-
-        if (customField.minDate) {
-          minDate = moment(customField.minDate).toDate();
-        } else if (!Number.isNaN(Number(customField.min))) {
-          minDate = moment(new Date()).add(customField.min, "days").toDate();
-        }
-
-        if (customField.maxDate) {
-          maxDate = moment(customField.maxDate).toDate();
-        } else if (!Number.isNaN(Number(customField.max))) {
-          maxDate = moment(new Date()).add(customField.max, "days").toDate();
-        }
-
-        if (element && element.type === "date") {
-          const dateElement = element as HTMLInputElement;
-
-          if (dateElement.min && moment(dateElement.min).isValid()) {
-            minDate = moment(dateElement.min).toDate();
-          }
-
-          if (dateElement.max && moment(dateElement.max).isValid()) {
-            maxDate = moment(dateElement.max).toDate();
-          }
-
-          return this.generator.date(minDate, maxDate);
-        }
-
-        return moment(this.generator.date(minDate, maxDate)).format(customField.template);
-      }
-
-      case "url": {
-        return this.generator.website();
-      }
-
-      case "text": {
-        const minWords = customField.min || 10;
-        const maxWords = customField.max || 30;
-        let maxLength = customField.maxLength || this.options.defaultMaxLength;
-        if (element && element.maxLength && element.maxLength < maxLength) {
-          maxLength = element.maxLength;
-        }
-        return this.generator.paragraph(minWords, maxWords, maxWords);
-      }
-
-      case "alphanumeric": {
-        return this.generator.alphanumeric(customField.template || "");
-      }
-
-      case "regex": {
-        const regExGenerator = new RandExp(customField.template || "");
-        regExGenerator.defaultRange.add(0, 65535);
-        return regExGenerator.gen();
-      }
-
-      case "randomized-list": {
-        if (customField.list && customField.list.length > 0) {
-          return customField.list[this.generator.randomNumber(0, customField.list.length - 1)];
-        }
-        return "";
-      }
-
-      default: {
-        return this.generator.phrase(this.getElementMaxLength(element));
-      }
-    }
+    // Fallback to local generation
+    return this.generator.phrase(this.getElementMaxLength(element));
   }
 
-  public fillInputElement(element: HTMLInputElement): void {
+  public async fillInputElement(element: HTMLInputElement): Promise<void> {
     if (this.shouldIgnoreElement(element)) {
       return;
     }

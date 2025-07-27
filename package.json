@@ -15,6 +15,7 @@
   "license": "MIT",
   "private": true,
   "dependencies": {
+    "@mistralai/mistralai": "^1.7.5",
     "bootstrap": "^4.5.2",
     "cssesc": "^3.0.0",
     "file-saver": "^2.0.2",
@@ -31,7 +32,8 @@
     "react-redux": "^7.2.1",
     "react-router-dom": "^5.2.0",
     "redux": "^4.0.5",
-    "redux-thunk": "^2.3.0"
+    "redux-thunk": "^2.3.0",
+    "sass": "^1.89.2"
   },
   "devDependencies": {
     "@babel/core": "^7.11.6",
@@ -80,11 +82,9 @@
     "file-loader": "^6.1.1",
     "fork-ts-checker-webpack-plugin": "^5.2.0",
     "mini-css-extract-plugin": "^1.0.0",
-    "node-sass": "^4.14.1",
     "postcss-loader": "^4.0.4",
     "prettier": "^2.1.2",
     "rimraf": "^3.0.2",
-    "sass-loader": "^10.0.3",
     "source-map-loader": "^1.1.1",
     "terser-webpack-plugin": "^4.2.3",
     "ts-node": "^9.0.0",
