@@ -23,7 +23,7 @@ class DataGenerator {
         ],
       });
 
-      return result?.choices?.[0]?.message?.content || "";
+      return result?.choices?.[0]?.message?.content?.toString() || "";
     } catch (error) {
       console.error("Mistral API error:", error);
       return ""; // Fallback to empty string on error
